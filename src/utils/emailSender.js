@@ -1,47 +1,54 @@
-// src/utils/emailSender.js
 const nodemailer = require('nodemailer');
 
 // Initialize transporter variable
 let transporter = null;
 
-// Initialize email transporter based on environment
+// Initialize Gmail transporter
 const initializeTransporter = async () => {
   try {
-    if (process.env.NODE_ENV === 'production' && process.env.GMAIL_USER && process.env.GMAIL_PASS) {
-      console.log('📧 Initializing production email transporter with Gmail');
-      
-      transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-          user: process.env.GMAIL_USER,
-          pass: process.env.GMAIL_PASS,
-        },
-        connectionTimeout: 10000,
-        pool: true,
-        maxConnections: 1,
-        maxMessages: 5
-      });
-    } else {
-      console.log('📧 Initializing development email transporter with Ethereal');
-      
-      const testAccount = await nodemailer.createTestAccount();
-      transporter = nodemailer.createTransport({
-        host: "smtp.ethereal.email",
-        port: 587,
-        auth: {
-          user: testAccount.user,
-          pass: testAccount.pass
-        }
-      });
-      
-      console.log('Ethereal credentials for testing:', testAccount.user, testAccount.pass);
+    if (!process.env.GMAIL_USER || !process.env.GMAIL_PASS) {
+      console.error('❌ Gmail credentials missing. Please set GMAIL_USER and GMAIL_PASS in .env');
+      return false;
+    }
+
+    console.log('📧 Initializing Gmail email transporter');
+    
+    transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.GMAIL_USER,
+        pass: process.env.GMAIL_PASS,
+      },
+      connectionTimeout: 15000, // Increased timeout
+      socketTimeout: 20000,
+      pool: true,
+      maxConnections: 1,
+      maxMessages: 5
+    });
+    
+    // Verify connection
+    await transporter.verify();
+    console.log('✅ Gmail transporter initialized successfully');
+    return true;
+    
+  } catch (error) {
+    console.error('❌ Failed to initialize Gmail transporter:', error.message);
+    
+    // Detailed error guidance
+    if (error.code === 'EAUTH') {
+      console.log('\n🔐 GMAIL SETUP INSTRUCTIONS:');
+      console.log('1. Enable 2-factor authentication on your Gmail account');
+      console.log('2. Generate an App Password: https://myaccount.google.com/apppasswords');
+      console.log('3. Select "Mail" as the app and "Other" as the device');
+      console.log('4. Use the generated 16-character password as GMAIL_PASS');
+      console.log('5. Make sure GMAIL_USER is your full Gmail address');
+    } else if (error.code === 'ETIMEDOUT' || error.code === 'ECONNECTION') {
+      console.error('🌐 Network issue detected. Check:');
+      console.error('- Internet connection');
+      console.error('- Firewall settings (ports 465/587)');
+      console.error('- Try different network');
     }
     
-    await transporter.verify();
-    console.log('✅ Email transporter initialized successfully');
-    return true;
-  } catch (error) {
-    console.error('❌ Failed to initialize email transporter:', error.message);
     transporter = null;
     return false;
   }
@@ -50,110 +57,62 @@ const initializeTransporter = async () => {
 // Initialize transporter on module load
 initializeTransporter();
 
-const createTransporter = () => {
-  return transporter;
-};
-
-// Verify connection with comprehensive error handling
+// Verify Gmail connection
 const verifyTransporter = async () => {
   if (!transporter) {
-    console.error('❌ Cannot verify transporter - creation failed');
+    console.error('❌ Transporter not initialized');
     return false;
   }
 
   try {
     await transporter.verify();
-    console.log('✅ Email transporter is ready to send messages');
+    console.log('✅ Gmail transporter is ready');
     return true;
   } catch (error) {
-    console.error('❌ Email transporter verification failed:', error.message);
-    
-    // Provide specific guidance based on error type
-    if (error.code === 'EAUTH') {
-      console.error('🔐 Authentication failed. Please check:');
-      console.error('1. Your GMAIL_USER and GMAIL_PASS in .env file');
-      console.error('2. If using Gmail, make sure you\'re using an App Password (not your regular password)');
-      console.error('3. That 2-factor authentication is enabled and you generated an App Password');
-      console.error('4. Visit: https://myaccount.google.com/apppasswords to generate an app password');
-    } else if (error.code === 'ECONNECTION' || error.code === 'ETIMEDOUT') {
-      console.error('🌐 Connection failed. This could be due to:');
-      console.error('1. Internet connection issues');
-      console.error('2. Firewall blocking SMTP connections (port 587 or 465)');
-      console.error('3. Gmail server issues');
-      console.error('4. Antivirus software blocking the connection');
-      console.error('5. Try using a different network (e.g., switch from WiFi to mobile hotspot)');
-    } else {
-      console.error('❌ Unknown error:', error.message);
-    }
-    
+    console.error('❌ Gmail verification failed:', error.message);
     return false;
   }
 };
 
-// Improved email sending function with better timeout handling
+// Send email function
 const sendEmail = async (mailOptions, emailType = 'email') => {
-  // Check if transporter is available
   if (!transporter) {
-    console.log(`📧 [FALLBACK] ${emailType} would be sent to:`, mailOptions.to);
-    if (mailOptions.html) {
-      // Extract OTP from HTML for console display
-      const otpMatch = mailOptions.html.match(/>(\d{6})</);
-      if (otpMatch) console.log('📧 [FALLBACK] OTP Code:', otpMatch[1]);
-      
-      // Also check for reset links
-      const linkMatch = mailOptions.html.match(/https?:\/\/[^\s<>"]+/);
-      if (linkMatch) console.log('📧 [FALLBACK] Reset Link:', linkMatch[0]);
-    }
-    return { success: false, fallback: true };
+    console.error(`❌ Cannot send ${emailType} - Gmail transporter not initialized`);
+    return { success: false, error: 'Gmail not configured' };
   }
 
   try {
     const info = await transporter.sendMail(mailOptions);
+    console.log(`✅ ${emailType} sent to: ${mailOptions.to}`);
+    console.log('📧 Message ID:', info.messageId);
     
-    // Show Ethereal preview URL in development
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('Preview URL:', nodemailer.getTestMessageUrl(info));
-    }
-    
-    console.log(`✅ ${emailType} sent to: ${mailOptions.to}`, info.messageId);
     return { 
       success: true, 
-      messageId: info.messageId,
-      previewUrl: process.env.NODE_ENV !== 'production' ? nodemailer.getTestMessageUrl(info) : null
+      messageId: info.messageId
     };
+    
   } catch (error) {
-    console.error(`❌ Error sending ${emailType}:`, error.message);
+    console.error(`❌ Failed to send ${emailType}:`, error.message);
     
-    // Check if it's a timeout error
-    if (error.code === 'ETIMEDOUT' || error.code === 'ESOCKET' || error.code === 'ECONNECTION') {
-      console.error('⏰ Timeout detected. This could be due to:');
-      console.error('1. Internet connection issues');
-      console.error('2. Firewall blocking SMTP connections');
-      console.error('3. Gmail server issues');
-      console.error('4. Antivirus software blocking the connection');
+    // Provide specific error details
+    if (error.code === 'EAUTH') {
+      console.error('🔐 Gmail authentication failed. Check your App Password');
+    } else if (error.code === 'ETIMEDOUT') {
+      console.error('⏰ Gmail connection timeout. Check your network');
     }
     
-    // Fallback to console logging
-    console.log(`📧 [FALLBACK] ${emailType} would be sent to:`, mailOptions.to);
-    if (mailOptions.html) {
-      const otpMatch = mailOptions.html.match(/>(\d{6})</);
-      if (otpMatch) console.log('📧 [FALLBACK] OTP Code:', otpMatch[1]);
-      
-      // Also check for reset links
-      const linkMatch = mailOptions.html.match(/https?:\/\/[^\s<>"]+/);
-      if (linkMatch) console.log('📧 [FALLBACK] Reset Link:', linkMatch[0]);
-    }
-    
-    return { success: false, fallback: true, error: error.message };
+    return { 
+      success: false, 
+      error: error.message,
+      details: 'Check Gmail credentials and internet connection'
+    };
   }
 };
-
-// Specific email functions
 
 // OTP Email
 const sendOTPEmail = async (email, otp, name = 'User') => {
   const mailOptions = {
-    from: process.env.EMAIL_FROM || process.env.GMAIL_USER || '"Medical Booking App" <noreply@medicalbooking.com>',
+    from: process.env.GMAIL_USER,
     to: email,
     subject: 'Your OTP Code - Medical Booking App',
     html: `
@@ -210,7 +169,7 @@ const sendPasswordResetEmail = async (email, resetToken) => {
   const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
   
   const mailOptions = {
-    from: process.env.EMAIL_FROM || process.env.GMAIL_USER || '"Medical Booking App" <noreply@medicalbooking.com>',
+    from: process.env.GMAIL_USER,
     to: email,
     subject: 'Password Reset Request - Medical Booking App',
     html: `
@@ -267,7 +226,7 @@ const sendPasswordResetEmail = async (email, resetToken) => {
   return sendEmail(mailOptions, 'password reset email');
 };
 
-// Welcome Email (NEW)
+// Welcome Email
 const sendWelcomeEmail = async (user) => {
   const mailOptions = {
     from: process.env.EMAIL_FROM || process.env.GMAIL_USER || '"Medical Booking App" <noreply@medicalbooking.com>',
@@ -278,14 +237,14 @@ const sendWelcomeEmail = async (user) => {
       <html>
       <head>
           <style>
-              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: '#333'; }
               .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-              .header { background: #28a745; color: white; padding: 20px; text-align: center; }
-              .content { background: #f9f9f9; padding: 30px; border-radius: 5px; }
+              .header { background: '#28a745'; color: white; padding: 20px; text-align: center; }
+              .content { background: '#f9f9f9'; padding: 30px; border-radius: 5px; }
               .footer { 
                   margin-top: 20px; 
                   text-align: center; 
-                  color: #666; 
+                  color: '#666'; 
                   font-size: 12px;
               }
           </style>
@@ -313,7 +272,7 @@ const sendWelcomeEmail = async (user) => {
   return sendEmail(mailOptions, 'welcome email');
 };
 
-// Appointment Confirmation Email (NEW)
+// Appointment Confirmation Email
 const sendAppointmentConfirmation = async (user, appointment) => {
   const mailOptions = {
     from: process.env.EMAIL_FROM || process.env.GMAIL_USER || '"Medical Booking App" <noreply@medicalbooking.com>',
@@ -324,15 +283,15 @@ const sendAppointmentConfirmation = async (user, appointment) => {
       <html>
       <head>
           <style>
-              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: '#333'; }
               .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-              .header { background: #17a2b8; color: white; padding: 20px; text-align: center; }
-              .content { background: #f9f9f9; padding: 30px; border-radius: 5px; }
-              .appointment-details { background: #e9ecef; padding: 15px; border-radius: 5px; }
+              .header { background: '#17a2b8'; color: white; padding: 20px; text-align: center; }
+              .content { background: '#f9f9f9'; padding: 30px; border-radius: 5px; }
+              .appointment-details { background: '#e9ecef'; padding: 15px; border-radius: 5px; }
               .footer { 
                   margin-top: 20px; 
                   text-align: center; 
-                  color: #666; 
+                  color: '#666'; 
                   font-size: 12px;
               }
           </style>
@@ -368,55 +327,10 @@ const sendAppointmentConfirmation = async (user, appointment) => {
   return sendEmail(mailOptions, 'appointment confirmation email');
 };
 
-// Test function to diagnose issues
+// Test function
 const testEmailConnection = async () => {
-  console.log('🧪 Testing email configuration...');
-  console.log('NODE_ENV:', process.env.NODE_ENV || 'development');
-  console.log('GMAIL_USER:', process.env.GMAIL_USER ? 'Set' : 'Not set');
-  
-  const isVerified = await verifyTransporter();
-  if (isVerified) {
-    console.log('✅ Email configuration test passed');
-    return true;
-  } else {
-    console.log('❌ Email configuration test failed');
-    return false;
-  }
-};
-
-// Test endpoint function (for your API route)
-const sendTestEmail = async (req, res) => {
-  try {
-    const result = await sendEmail({
-      from: process.env.EMAIL_FROM || process.env.GMAIL_USER || '"Medical Booking App" <noreply@medicalbooking.com>',
-      to: process.env.TEST_EMAIL || process.env.GMAIL_USER || 'test@example.com',
-      subject: 'Test Email from Medical Booking App',
-      html: `
-        <h2>Test Email</h2>
-        <p>This is a test email sent from the Medical Booking App backend.</p>
-        <p>If you received this, your email configuration is working correctly!</p>
-      `
-    }, 'test email');
-    
-    if (result.success) {
-      res.json({ 
-        success: true, 
-        message: 'Test email sent successfully',
-        previewUrl: result.previewUrl 
-      });
-    } else {
-      res.status(500).json({ 
-        success: false, 
-        message: 'Failed to send test email',
-        fallback: result.fallback 
-      });
-    }
-  } catch (error) {
-    res.status(500).json({ 
-      success: false, 
-      message: 'Error sending test email: ' + error.message 
-    });
-  }
+  console.log('🧪 Testing Gmail configuration...');
+  return await verifyTransporter();
 };
 
 module.exports = { 
@@ -424,8 +338,6 @@ module.exports = {
   sendPasswordResetEmail,
   sendWelcomeEmail,
   sendAppointmentConfirmation,
-  sendTestEmail,
-  transporter,
-  verifyTransporter,
-  testEmailConnection
+  testEmailConnection,
+  verifyTransporter
 };
