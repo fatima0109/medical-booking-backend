@@ -22,7 +22,8 @@ const setupDatabase = async () => {
     last_otp_resend TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     reset_token VARCHAR(255),
-    reset_token_expiry TIMESTAMP
+    reset_token_expiry TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   );
 `);
 
