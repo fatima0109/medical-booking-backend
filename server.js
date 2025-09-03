@@ -69,8 +69,8 @@ app.get('/api/health', (req, res) => {
 // 7. Static Files (if needed)
 app.use(express.static(path.join(__dirname, 'public')));
 
-// 8. 404 Handler
-app.all('*', (req, res) => {
+// 8. 404 Handler - ALTERNATIVE VERSION
+app.use((req, res) => {
   res.status(404).json({
     status: 'fail',
     message: `Can't find ${req.originalUrl} on this server!`
