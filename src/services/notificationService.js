@@ -1,7 +1,41 @@
 const pool = require('../db/db');
 const { getIO } = require('./socketService');
+const { sendEmail } = require('../utils/emailSender'); // Added email sender
 
 class NotificationService {
+  // SIMPLE NOTIFICATION METHOD - Added this
+  static async sendNotification({ to, subject, message, type = 'general', data = {} }) {
+    try {
+      console.log(`Notification sent:`, { to, subject, message, type, data });
+      
+      // Send email for most notification types
+      if (to && subject && message) {
+        await sendEmail(to, subject, message);
+      }
+      
+      // Store notification in database if needed
+      await this.storeNotificationInDatabase({ to, subject, message, type, data });
+      
+      return true;
+    } catch (error) {
+      console.error('Notification error:', error);
+      return false;
+    }
+  }
+
+  // STORE NOTIFICATION IN DATABASE - Added this helper
+  static async storeNotificationInDatabase({ to, subject, message, type, data }) {
+    try {
+      await pool.query(
+        `INSERT INTO notifications (recipient_email, subject, message, type, metadata)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [to, subject, message, type, JSON.stringify(data)]
+      );
+    } catch (error) {
+      console.error('Failed to store notification in database:', error);
+    }
+  }
+
   // CORRECTED METHOD SYNTAX - remove 'async' from method declaration
   static async sendUpcomingAppointmentNotifications() {
     let client;
@@ -72,6 +106,15 @@ class NotificationService {
         appointmentTime: appointment.appointment_date,
         doctorName: appointment.doctor_name,
         type: 'reminder'
+      });
+
+      // Send email notification using the new simple method
+      await this.sendNotification({
+        to: appointment.patient_email,
+        subject: 'Appointment Reminder',
+        message: `Dear ${appointment.patient_name}, your appointment with Dr. ${appointment.doctor_name} is in 30 minutes.`,
+        type: 'appointment_reminder',
+        data: { appointmentId: appointment.id }
       });
 
       // Mark as notified
@@ -168,38 +211,52 @@ class NotificationService {
     }
   }
 
-  // Enhanced doctor calling notification with timeout
-  static async sendDoctorCallingNotification(patientId, doctorName, roomNumber, timeoutMs = 5000) {
+ // Enhanced doctor calling notification with REAL acknowledgement
+  static async sendDoctorCallingNotification(patientId, doctorName, roomNumber, timeoutMs = 10000) {
     try {
       const io = this.getIO();
       
-      // Create a promise that resolves when the notification is acknowledged
+      // Get the specific patient's socket using the helper method
+      const patientSocket = await this.getPatientSocket(patientId);
+      
+      if (!patientSocket) {
+        throw new Error(`Patient ${patientId} is not connected`);
+      }
+
+      // Create a promise that waits for client acknowledgement
       const notificationPromise = new Promise((resolve, reject) => {
         // Set a timeout for the notification
         const timeout = setTimeout(() => {
           reject(new Error(`Notification timeout for patient ${patientId}`));
         }, timeoutMs);
         
-        // For real acknowledgement, you'd need client-side confirmation
-        io.to(`patient-${patientId}`).emit('doctor-calling', {
+        // Send notification with acknowledgement requirement
+        patientSocket.emit('doctor-calling', {
           message: `Dr. ${doctorName} is ready to see you`,
           doctorName: doctorName,
           room: roomNumber || 'Consultation Room',
           timestamp: new Date().toISOString(),
           type: 'doctor_calling'
-        });
-        
-        // For now, we'll assume success after a short delay
-        // In a real implementation, you'd wait for client acknowledgement
-        setTimeout(() => {
+        }, (acknowledgement) => {
+          // This callback runs when client acknowledges
           clearTimeout(timeout);
-          resolve(true);
-        }, 100);
+          
+          if (acknowledgement && acknowledgement.success) {
+            console.log(`Doctor calling notification acknowledged by patient ${patientId}`);
+            resolve(true);
+          } else {
+            const errorMsg = acknowledgement && acknowledgement.error 
+              ? `Patient ${patientId} failed to acknowledge: ${acknowledgement.error}`
+              : `Patient ${patientId} failed to acknowledge notification`;
+            reject(new Error(errorMsg));
+          }
+        });
       });
       
       await notificationPromise;
       console.log(`Doctor calling notification delivered to patient ${patientId}`);
       return true;
+      
     } catch (error) {
       console.error('Doctor calling notification error:', error);
       
@@ -216,28 +273,26 @@ class NotificationService {
     }
   }
 
-  // Safe IO getter with enhanced fallback
-  static getIO() {
+  // Helper method to get patient's socket
+  static async getPatientSocket(patientId) {
     try {
-      const io = getIO();
-      if (!io || typeof io.emit !== 'function') {
-        throw new Error('Socket.io instance is not valid');
+      const io = this.getIO();
+      
+      // Use fetchSockets() to get all sockets in the patient's room
+      const sockets = await io.in(`patient-${patientId}`).fetchSockets();
+      
+      if (sockets.length === 0) {
+        console.log(`No sockets found for patient ${patientId}`);
+        return null;
       }
-      return io;
+      
+      // Return the first socket (you could implement more complex logic here)
+      // For example, return the most recently connected socket
+      return sockets[0];
+      
     } catch (error) {
-      console.warn('Socket.io not available, using mock implementation');
-      return { 
-        to: () => ({
-          emit: () => {
-            console.log('Mock socket emission (no real connection)');
-            return true;
-          }
-        }),
-        emit: () => {
-          console.log('Mock socket emission (no real connection)');
-          return true;
-        }
-      };
+      console.error('Error getting patient socket:', error);
+      return null;
     }
   }
 
@@ -246,13 +301,14 @@ class NotificationService {
     const maxRetries = 2;
     
     try {
-      // Implement actual email service integration here
-      console.log(`Would send email to ${appointment.patient_email} about appointment`);
-      
-      // Simulate potential failure for demonstration
-      if (Math.random() < 0.1) { // 10% chance of failure for testing
-        throw new Error('Simulated email service failure');
-      }
+      // Use the new simple notification method instead
+      await this.sendNotification({
+        to: appointment.patient_email,
+        subject: 'Appointment Notification',
+        message: `Regarding your appointment with Dr. ${appointment.doctor_name}`,
+        type: 'appointment_notification',
+        data: { appointmentId: appointment.id }
+      });
       
       return true;
     } catch (error) {
@@ -371,6 +427,6 @@ class NotificationService {
       console.error('Failed to retry notifications:', error);
     }
   }
-} // <-- THIS IS THE CORRECT CLOSING BRACE FOR THE CLASS
+}
 
 module.exports = NotificationService;

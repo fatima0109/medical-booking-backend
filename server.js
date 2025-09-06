@@ -13,6 +13,7 @@ const userRoutes = require('./src/routes/users');
 const availabilityRoutes = require('./src/routes/availability');
 const passwordResetRoutes = require('./src/routes/passwordReset');
 const queueRoutes = require('./src/routes/queue');
+const feedbackRoutes = require('./src/routes/feedback');
 
 // Initialize Express app
 const app = express();
@@ -56,6 +57,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/availability', availabilityRoutes);
 app.use('/api/password-reset', passwordResetRoutes);
 app.use('/api/queue', queueRoutes);
+app.use('/api/feedback', feedbackRoutes);
 
 // 6. Health Check
 app.get('/api/health', (req, res) => {

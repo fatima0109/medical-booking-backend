@@ -138,6 +138,48 @@ const setupDatabase = async () => {
       );
     `);
 
+    await client.query(`
+      -- Feedback categories table
+      CREATE TABLE feedback_categories (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(100) NOT NULL,
+        description TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    await client.query(`
+      -- Feedback table
+CREATE TABLE feedback (
+    id SERIAL PRIMARY KEY,
+    appointment_id INTEGER REFERENCES appointments(id),
+    patient_id INTEGER REFERENCES users(id),
+    doctor_id INTEGER REFERENCES users(id),
+    rating INTEGER CHECK (rating >= 1 AND rating <= 5),
+    comment TEXT,
+    category_id INTEGER REFERENCES feedback_categories(id),
+    is_anonymous BOOLEAN DEFAULT FALSE,
+    status VARCHAR(20) DEFAULT 'pending', -- pending, approved, rejected
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+    `);
+
+    await client.query(`
+      -- Doctor ratings summary table (for quick access)
+CREATE TABLE doctor_ratings (
+    doctor_id INTEGER PRIMARY KEY REFERENCES users(id),
+    average_rating DECIMAL(3,2) DEFAULT 0,
+    total_ratings INTEGER DEFAULT 0,
+    rating_1 INTEGER DEFAULT 0,
+    rating_2 INTEGER DEFAULT 0,
+    rating_3 INTEGER DEFAULT 0,
+    rating_4 INTEGER DEFAULT 0,
+    rating_5 INTEGER DEFAULT 0,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+    `);
+
     await client.query('COMMIT');
     console.log('✅ Database setup completed successfully');
   } catch (err) {
