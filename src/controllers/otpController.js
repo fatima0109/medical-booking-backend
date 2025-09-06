@@ -4,11 +4,37 @@ const jwt = require('jsonwebtoken');
 const pool = require('../db/pool');
 const { sendOTPEmail } = require('../utils/emailSender');
 const { generateOTP } = require('../utils/otpGenerator');
+const { 
+  saveTempUserData, 
+  getTempUserData, 
+  deleteTempUserData,
+  tempUserStorage  // Import this if you need it for debugging
+} = require('../utils/tempStorage');
 
-// Temporary storage for OTPs
-const otpStorage = new Map();
+// // Temporary storage for registration data (use Redis in production)
+// const tempUserStorage = new Map();
 
-// NEW: Proper Sign-Up function that creates user first
+// // Helper functions for temporary storage
+// const saveTempUserData = (email, data) => {
+//   tempUserStorage.set(email, data);
+//   // Set expiration (3 minutes)
+//   setTimeout(() => {
+//     if (tempUserStorage.has(email)) {
+//       tempUserStorage.delete(email);
+//       console.log(`Temp data for ${email} expired`);
+//     }
+//   }, 3 * 60 * 1000);
+// };
+
+// const getTempUserData = (email) => {
+//   return tempUserStorage.get(email);
+// };
+
+// const deleteTempUserData = (email) => {
+//   tempUserStorage.delete(email);
+// };
+
+// NEW: Sign-Up function that stores data temporarily
 const signUp = async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -22,7 +48,7 @@ const signUp = async (req, res) => {
 
     const { email, password, name, contact_number, phone } = req.body;
     
-    // Check if user already exists
+    // Check if user already exists in DATABASE
     const existingUser = await pool.query(
       'SELECT id FROM users WHERE email = $1',
       [email]
@@ -35,36 +61,45 @@ const signUp = async (req, res) => {
       });
     }
 
+    // Check if there's already a pending registration
+    const existingTempData = await getTempUserData(email);
+    if (existingTempData) {
+      return res.status(400).json({
+        success: false,
+        error: 'Registration already in progress. Please verify your OTP or wait for it to expire.'
+      });
+    }
+
     // Generate OTP with 3-minute expiry
     const otp = generateOTP();
-    const otpExpiry = new Date(Date.now() + 3 * 60 * 1000); // 3 minutes
+    const otpExpiry = Date.now() + 3 * 60 * 1000; // 3 minutes
     
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
     
-    // CREATE NEW USER in database with OTP
-    const newUser = await pool.query(
-      `INSERT INTO users (email, password_hash, name, contact_number, phone, otp, otp_expiry, verified)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       RETURNING id, email, name, contact_number, phone`,
-      [email, hashedPassword, name, contact_number, phone, otp, otpExpiry, false]
-    );
+    // Store user data temporarily (NOT in database yet)
+    const tempUser = {
+      email,
+      password_hash: hashedPassword,
+      name,
+      contact_number,
+      phone,
+      otp,
+      otpExpiry,
+      createdAt: new Date()
+    };
+    
+    // Save to temporary storage
+    await saveTempUserData(email, tempUser);
 
-    // Store in memory as backup
-    otpStorage.set(email, {
-      otp: otp,
-      expiresAt: Date.now() + 180000, // 3 minutes
-      userData: { email, password: hashedPassword, name, contact_number, phone }
-    });
-
-    // Send OTP via email (or log to console)
+    // Send OTP via email
     await sendOTPEmail(email, otp);
 
     // DEBUG LOG
-    console.log('=== NEW USER SIGN UP ===');
+    console.log('=== NEW USER SIGN UP (TEMP STORAGE) ===');
     console.log('Email:', email);
     console.log('OTP:', otp);
-    console.log('Expires at:', otpExpiry.toISOString());
+    console.log('Expires at:', new Date(otpExpiry).toISOString());
     console.log('=====================');
 
     return res.json({
@@ -77,12 +112,12 @@ const signUp = async (req, res) => {
     console.error('Sign up error:', error);
     return res.status(500).json({
       success: false,
-      error: 'Failed to create user'
+      error: 'Failed to process registration'
     });
   }
 };
 
-// OTP Verification Endpoint (3-minute validity)
+// MODIFIED: OTP Verification that creates user after verification
 const verifyOTP = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -101,43 +136,38 @@ const verifyOTP = async (req, res) => {
     console.log('Email:', email);
     console.log('Input OTP:', otp);
     
-    // Check user in DATABASE first
-    const userResult = await pool.query(
-      'SELECT id, otp, otp_expiry, name, contact_number, phone FROM users WHERE email = $1',
-      [email]
-    );
-
-    if (userResult.rows.length === 0) {
-      console.log('No user found in database for email:', email);
+    // Retrieve temporary user data
+    const tempUserData = await getTempUserData(email);
+    
+    if (!tempUserData) {
+      console.log('No pending registration found for email:', email);
       return res.status(400).json({
         success: false,
-        error: 'No user found with this email'
+        error: 'No pending registration found or OTP expired'
       });
     }
-
-    const user = userResult.rows[0];
-    const now = new Date();
     
-    console.log('Database OTP data:', {
-      storedOTP: user.otp,
-      otpExpiry: user.otp_expiry,
-      currentTime: now.toISOString(),
-      isExpired: new Date(user.otp_expiry) < now,
-      otpMatches: user.otp === otp
+    console.log('Temp user data found:', {
+      storedOTP: tempUserData.otp,
+      otpExpiry: new Date(tempUserData.otpExpiry).toISOString(),
+      currentTime: new Date().toISOString(),
+      isExpired: Date.now() > tempUserData.otpExpiry,
+      otpMatches: tempUserData.otp === otp
     });
 
-    // Check if OTP has expired (3 minutes)
-    if (new Date(user.otp_expiry) < now) {
-      console.log('OTP expired in database');
+    // Check if OTP is expired
+    if (Date.now() > tempUserData.otpExpiry) {
+      console.log('OTP expired');
+      await deleteTempUserData(email);
       return res.status(400).json({
         success: false,
         error: 'OTP expired. Please request a new one.'
       });
     }
-
-    // Check if OTP matches
-    if (user.otp !== otp) {
-      console.log('OTP mismatch in database');
+    
+    // Verify OTP
+    if (tempUserData.otp !== otp) {
+      console.log('OTP mismatch');
       return res.status(400).json({
         success: false,
         error: 'Invalid OTP'
@@ -146,40 +176,51 @@ const verifyOTP = async (req, res) => {
 
     console.log('OTP verified successfully');
 
-    // Mark user as verified and clear OTP
-    await pool.query(
-      `UPDATE users 
-       SET verified = true, otp = NULL, otp_expiry = NULL
-       WHERE email = $1`,
-      [email]
+    // OTP verified - NOW create the actual user in database
+    const newUser = await pool.query(
+      `INSERT INTO users (email, password_hash, name, contact_number, phone, verified)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id, email, name, contact_number, phone`,
+      [tempUserData.email, tempUserData.password_hash, tempUserData.name, 
+       tempUserData.contact_number, tempUserData.phone, true]
     );
+
+    // Clean up temporary data
+    deleteTempUserData(email);
 
     // Generate JWT token
     const token = jwt.sign(
-      { userId: user.id, email: email },
+      { userId: newUser.rows[0].id, email: newUser.rows[0].email },
       process.env.JWT_SECRET,
       { expiresIn: '1h' }
     );
 
-    // Clean up memory storage
-    otpStorage.delete(email);
-
-    return res.status(200).json({
+    return res.status(201).json({
       success: true,
+      message: 'Registration successful',
       token: token,
       user: {
-        id: user.id,
-        email: email,
-        name: user.name,
-        contact_number: user.contact_number,
-        phone: user.phone,
+        id: newUser.rows[0].id,
+        email: newUser.rows[0].email,
+        name: newUser.rows[0].name,
+        contact_number: newUser.rows[0].contact_number,
+        phone: newUser.rows[0].phone,
         verified: true
       },
-      message: 'Account verified successfully',
       redirectTo: '/dashboard'
     });
+    
   } catch (error) {
     console.error('OTP verification error:', error);
+    
+    // Handle unique constraint violation (in case user was created elsewhere)
+    if (error.code === '23505') { // PostgreSQL unique violation
+      return res.status(400).json({
+        success: false,
+        error: 'User already exists with this email'
+      });
+    }
+    
     return res.status(500).json({
       success: false,
       error: 'Verification failed'
@@ -187,90 +228,41 @@ const verifyOTP = async (req, res) => {
   }
 };
 
-// Resend OTP Route (for existing users)
+// MODIFIED: Resend OTP for pending registrations
 const resendOTP = async (req, res) => {
   try {
     const { email } = req.body;
     
-    // Check if user exists in database
-    const userResult = await pool.query(
-      'SELECT id, otp_resend_attempts, last_otp_resend FROM users WHERE email = $1',
-      [email]
-    );
-
-    if (userResult.rows.length === 0) {
+    // Check if we have temp data for this email
+    const tempUserData = await getTempUserData(email);
+    if (!tempUserData) {
       return res.status(400).json({
         success: false,
-        error: 'No user found with this email'
+        error: 'No pending registration found'
       });
     }
 
-    const user = userResult.rows[0];
-    const now = new Date();
-    const MAX_RESEND_ATTEMPTS = 3;
-    const RESEND_COOLDOWN = 60 * 60 * 1000; // 1 hour in milliseconds
-
-    // Check if user has exceeded resend attempts
-    if (user.otp_resend_attempts >= MAX_RESEND_ATTEMPTS) {
-      // Check if cooldown period has passed (1 hour)
-      if (user.last_otp_resend && 
-          (now - new Date(user.last_otp_resend)) < RESEND_COOLDOWN) {
-        const timeLeft = Math.ceil((RESEND_COOLDOWN - (now - new Date(user.last_otp_resend))) / 1000 / 60);
-        return res.status(429).json({
-          success: false,
-          error: `Maximum OTP resend attempts exceeded. Please try again after ${timeLeft} minutes.`,
-          retryAfter: timeLeft
-        });
-      } else {
-        // Reset attempts if cooldown has passed
-        await pool.query(
-          'UPDATE users SET otp_resend_attempts = 0 WHERE id = $1',
-          [user.id]
-        );
-      }
-    }
-
-    // Generate new OTP with 3-minute expiry
+    // Generate new OTP
     const newOtp = generateOTP();
-    const otpExpiry = new Date(Date.now() + 3 * 60 * 1000); // 3 minutes
-
-    // Update user with new OTP and increment resend attempts
-    await pool.query(
-      `UPDATE users 
-       SET otp = $1, otp_expiry = $2, 
-           otp_resend_attempts = otp_resend_attempts + 1,
-           last_otp_resend = $3
-       WHERE email = $4`,
-      [newOtp, otpExpiry, now, email]
-    );
-
-    // ADDED: Console log for resend OTP
+    const newOtpExpiry = Date.now() + 3 * 60 * 1000; // 3 minutes
+    
+    // Update temp data
+    tempUserData.otp = newOtp;
+    tempUserData.otpExpiry = newOtpExpiry;
+    await saveTempUserData(email, tempUserData);
+    
+    // Send new OTP
+    await sendOTPEmail(email, newOtp);
+    
     console.log('=== RESEND OTP ===');
     console.log('Email:', email);
     console.log('New OTP:', newOtp);
-    console.log('Expires at:', otpExpiry.toISOString());
-    console.log('Resend attempts:', user.otp_resend_attempts + 1);
+    console.log('Expires at:', new Date(newOtpExpiry).toISOString());
     console.log('==================');
-
-    // Update in-memory storage as well
-    const storedData = otpStorage.get(email);
-    if (storedData) {
-      otpStorage.set(email, {
-        ...storedData,
-        otp: newOtp,
-        expiresAt: Date.now() + 180000 // 3 min
-      });
-    }
-
-    // Send OTP via email
-    await sendOTPEmail(email, newOtp);
-
-    const attemptsLeft = MAX_RESEND_ATTEMPTS - (user.otp_resend_attempts + 1);
 
     return res.json({
       success: true,
       message: 'New verification code sent',
-      attemptsLeft: attemptsLeft,
       expiresIn: 3 // 3 minutes
     });
   } catch (error) {
@@ -282,54 +274,62 @@ const resendOTP = async (req, res) => {
   }
 };
 
-// Debug endpoint to check OTP storage
-const debugOTPStorage = (req, res) => {
+// Debug endpoint to check temporary storage
+const debugTempStorage = (req, res) => {
   const storageData = {};
-  otpStorage.forEach((value, key) => {
+  tempUserStorage.forEach((value, key) => {
     storageData[key] = {
+      email: value.email,
+      name: value.name,
       otp: value.otp,
-      expiresAt: new Date(value.expiresAt).toISOString(),
-      timeRemaining: `${Math.round((value.expiresAt - Date.now()) / 1000)} seconds`,
-      hasUserData: !!value.userData
+      expiresAt: new Date(value.otpExpiry).toISOString(),
+      timeRemaining: `${Math.round((value.otpExpiry - Date.now()) / 1000)} seconds`
     };
   });
   
   res.json({
-    totalEntries: otpStorage.size,
+    totalEntries: tempUserStorage.size,
     storageData: storageData
   });
+  
+  if (process.env.NODE_ENV === 'production') {
+    return res.json({
+      message: 'Debug endpoint not available in production'
+    });
+  }
+
 };
 
-// Clear all OTPs (for testing)
-const clearOTPs = (req, res) => {
-  const previousSize = otpStorage.size;
-  otpStorage.clear();
+// Clear all temporary data (for testing)
+const clearTempStorage = (req, res) => {
+  const previousSize = tempUserStorage.size;
+  tempUserStorage.clear();
   res.json({
     success: true,
-    message: `Cleared ${previousSize} OTP entries`,
-    currentSize: otpStorage.size
+    message: `Cleared ${previousSize} temporary entries`,
+    currentSize: tempUserStorage.size
   });
 };
 
-// Manually set a test OTP
-const setTestOTP = (req, res) => {
-  const { email, otp = '123456' } = req.body;
+// Manually set test data (for testing)
+const setTestData = (req, res) => {
+  const { email, otp = '123456', name = 'Test User' } = req.body;
   
-  otpStorage.set(email, {
+  saveTempUserData(email, {
+    email: email,
+    password_hash: '$2b$10$examplehashedpassword',
+    name: name,
+    contact_number: '+1234567890',
+    phone: '+1234567890',
     otp: otp,
-    expiresAt: Date.now() + 180000, // 3 minutes
-    userData: { 
-      email: email,
-      password: 'testpassword',
-      name: 'Test User',
-      contactNumber: '+1234567890'
-    }
+    otpExpiry: Date.now() + 180000, // 3 minutes
+    createdAt: new Date()
   });
   
   res.json({
     success: true,
-    message: `Test OTP set for ${email}`,
-    data: otpStorage.get(email)
+    message: `Test data set for ${email}`,
+    data: getTempUserData(email)
   });
 };
 
@@ -337,8 +337,8 @@ module.exports = {
   signUp,
   verifyOTP,
   resendOTP,
-  debugOTPStorage,
-  clearOTPs,
-  setTestOTP,
-  otpStorage
+  debugTempStorage,
+  clearTempStorage,
+  setTestData,
+  // tempUserStorage
 };
