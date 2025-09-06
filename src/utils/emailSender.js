@@ -114,7 +114,7 @@ const sendOTPEmail = async (email, otp, name = 'User') => {
   const mailOptions = {
     from: process.env.GMAIL_USER,
     to: email,
-    subject: 'Your OTP Code - Medical Booking App',
+    subject: 'Your OTP Code - TeleTabib',
     html: `
         <!DOCTYPE html>
         <html>
@@ -143,17 +143,17 @@ const sendOTPEmail = async (email, otp, name = 'User') => {
         <body>
             <div class="container">
                 <div class="header">
-                    <h1>Medical Booking App</h1>
+                    <h1>TeleTabib</h1>
                 </div>
                 <div class="content">
                     <h2>Hello ${name},</h2>
                     <p>Your One-Time Password (OTP) for verification is:</p>
                     <div class="otp-code">${otp}</div>
-                    <p>This OTP is valid for 10 minutes. Please do not share it with anyone.</p>
+                    <p>This OTP is valid for 3 minutes. Please do not share it with anyone.</p>
                     <p>If you didn't request this OTP, please ignore this email.</p>
                 </div>
                 <div class="footer">
-                    <p>© 2025 Medical Booking App. All rights reserved.</p>
+                    <p>© 2025 TeleTabib. All rights reserved.</p>
                 </div>
             </div>
         </body>
@@ -171,7 +171,7 @@ const sendPasswordResetEmail = async (email, resetToken) => {
   const mailOptions = {
     from: process.env.GMAIL_USER,
     to: email,
-    subject: 'Password Reset Request - Medical Booking App',
+    subject: 'Password Reset Request - TeleTabib',
     html: `
         <!DOCTYPE html>
         <html>
@@ -185,7 +185,7 @@ const sendPasswordResetEmail = async (email, resetToken) => {
                     display: inline-block; 
                     padding: 12px 24px; 
                     background: #007bff; 
-                    color: white; 
+                    color: #ffffff; 
                     text-decoration: none; 
                     border-radius: 5px; 
                     margin: 20px 0;
@@ -207,15 +207,15 @@ const sendPasswordResetEmail = async (email, resetToken) => {
                     <h2>Reset Your Password</h2>
                     <p>You requested to reset your password. Click the button below to proceed:</p>
                     <p style="text-align: center;">
-                        <a href="${resetLink}" class="button">Reset Password</a>
+                        <a href="${resetLink}" class="button" style="color: #ffffff;">Reset Password</a>
                     </p>
                     <p>Or copy and paste this link in your browser:</p>
-                    <p style="word-break: break-all; color: #007bff;">${resetLink}</p>
-                    <p>This link will expire in 1 hour for security reasons.</p>
+                    <p style="word-break: break-all; color: rgba(247, 248, 248, 0);">${resetLink}</p>
+                    <p>This link will expire in 1 hour.</p>
                     <p>If you didn't request a password reset, please ignore this email.</p>
                 </div>
                 <div class="footer">
-                    <p>© 2025 Medical Booking App. All rights reserved.</p>
+                    <p>© 2025 TeleTabib. All rights reserved.</p>
                 </div>
             </div>
         </body>
@@ -226,12 +226,87 @@ const sendPasswordResetEmail = async (email, resetToken) => {
   return sendEmail(mailOptions, 'password reset email');
 };
 
+// Password Change Notification Email
+const sendPasswordChangeNotification = async (email, name = 'User') => {
+  const mailOptions = {
+    from: process.env.GMAIL_USER,
+    to: email,
+    subject: 'Your Password Has Been Changed - TeleTabib',
+    html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                .header { background: #28a745; color: white; padding: 20px; text-align: center; }
+                .content { background: #f9f9f9; padding: 30px; border-radius: 5px; }
+                .alert-box { 
+                    background: #e8f5e8; 
+                    border-left: 4px solid #28a745;
+                    padding: 15px;
+                    margin: 20px 0;
+                }
+                .footer { 
+                    margin-top: 20px; 
+                    text-align: center; 
+                    color: #666; 
+                    font-size: 12px;
+                }
+                .support {
+                    margin-top: 20px;
+                    padding: 15px;
+                    background: #f8f9fa;
+                    border-radius: 5px;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>Password Changed Successfully</h1>
+                </div>
+                <div class="content">
+                    <h2>Hello ${name},</h2>
+                    
+                    <div class="alert-box">
+                        <p><strong>This is a confirmation that your password for Medical Booking App was recently changed.</strong></p>
+                    </div>
+                    
+                    <p>If you made this change, no further action is needed.</p>
+                    
+                    <p>If you did NOT change your password, please take immediate action:</p>
+                    <ol>
+                        <li>Reset your password using the "Forgot Password" feature</li>
+                        <li>Check your account security settings</li>
+                        <li>Contact our support team if you notice any suspicious activity</li>
+                    </ol>
+                    
+                    <div class="support">
+                        <p><strong>Need help?</strong></p>
+                        <p>Contact our support team at: <a href="mailto:support@medicalbookingapp.com">support@medicalbookingapp.com</a></p>
+                    </div>
+                    
+                    <p>Thank you for helping us keep your account secure.</p>
+                </div>
+                <div class="footer">
+                    <p>© 2025 TeleTabib. All rights reserved.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+      `
+  };
+
+  return sendEmail(mailOptions, 'password change notification');
+};
+
 // Welcome Email
 const sendWelcomeEmail = async (user) => {
   const mailOptions = {
     from: process.env.EMAIL_FROM || process.env.GMAIL_USER || '"Medical Booking App" <noreply@medicalbooking.com>',
     to: user.email,
-    subject: 'Welcome to Medical Booking App',
+    subject: 'Welcome to TeleTabib',
     html: `
       <!DOCTYPE html>
       <html>
@@ -252,7 +327,7 @@ const sendWelcomeEmail = async (user) => {
       <body>
           <div class="container">
               <div class="header">
-                  <h1>Welcome to Medical Booking App</h1>
+                  <h1>Welcome to TeleTabib</h1>
               </div>
               <div class="content">
                   <h2>Hello ${user.name},</h2>
@@ -261,7 +336,7 @@ const sendWelcomeEmail = async (user) => {
                   <p>If you have any questions, feel free to contact our support team.</p>
               </div>
               <div class="footer">
-                  <p>© 2025 Medical Booking App. All rights reserved.</p>
+                  <p>© 2025 TeleTabib. All rights reserved.</p>
               </div>
           </div>
       </body>
@@ -277,7 +352,7 @@ const sendAppointmentConfirmation = async (user, appointment) => {
   const mailOptions = {
     from: process.env.EMAIL_FROM || process.env.GMAIL_USER || '"Medical Booking App" <noreply@medicalbooking.com>',
     to: user.email,
-    subject: 'Your Appointment Confirmation',
+    subject: 'Appointment Confirmation',
     html: `
       <!DOCTYPE html>
       <html>
@@ -316,7 +391,7 @@ const sendAppointmentConfirmation = async (user, appointment) => {
                   <p>If you need to reschedule or cancel, please do so at least 24 hours in advance.</p>
               </div>
               <div class="footer">
-                  <p>© 2025 Medical Booking App. All rights reserved.</p>
+                  <p>© 2025 TeleTabib. All rights reserved.</p>
               </div>
           </div>
       </body>
@@ -336,6 +411,7 @@ const testEmailConnection = async () => {
 module.exports = { 
   sendOTPEmail, 
   sendPasswordResetEmail,
+  sendPasswordChangeNotification,
   sendWelcomeEmail,
   sendAppointmentConfirmation,
   testEmailConnection,
