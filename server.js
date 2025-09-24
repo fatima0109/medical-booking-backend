@@ -14,6 +14,9 @@ const availabilityRoutes = require('./src/routes/availability');
 const passwordResetRoutes = require('./src/routes/passwordReset');
 const queueRoutes = require('./src/routes/queue');
 const feedbackRoutes = require('./src/routes/feedback');
+const paymentRoutes = require('./src/routes/payments');
+const { startCronJobs } = require('./src/services/cronService');
+const { initSocket } = require('./src/services/socketService');
 
 // Initialize Express app
 const app = express();
@@ -58,6 +61,7 @@ app.use('/api/availability', availabilityRoutes);
 app.use('/api/password-reset', passwordResetRoutes);
 app.use('/api/queue', queueRoutes);
 app.use('/api/feedback', feedbackRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // 6. Health Check
 app.get('/api/health', (req, res) => {
@@ -95,10 +99,18 @@ app.use((err, req, res, next) => {
 
 // 10. Start Server
 const PORT = process.env.PORT || 5000;
+const http = require('http');
+const server = http.createServer(app);
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  try {
+    initSocket(server);
+    startCronJobs();
+  } catch (e) {
+    console.error('Failed to init sockets/cron:', e);
+  }
 });
 
 module.exports = app;

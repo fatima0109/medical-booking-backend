@@ -1,6 +1,6 @@
 const pool = require('../db/db');
 const { getIO } = require('./socketService');
-const { sendEmail } = require('../utils/emailSender'); // Added email sender
+const { sendEmail } = require('../utils/emailSender');
 
 class NotificationService {
   // SIMPLE NOTIFICATION METHOD - Added this
@@ -10,7 +10,13 @@ class NotificationService {
       
       // Send email for most notification types
       if (to && subject && message) {
-        await sendEmail(to, subject, message);
+        const mailOptions = {
+          from: process.env.EMAIL_FROM || process.env.GMAIL_USER,
+          to,
+          subject,
+          html: `<p>${message}</p>`
+        };
+        await sendEmail(mailOptions, type);
       }
       
       // Store notification in database if needed
@@ -99,7 +105,7 @@ class NotificationService {
     const client = await pool.connect();
     try {
       // Send WebSocket notification
-      const io = this.getIO();
+      const io = getIO();
       io.to(`patient-${appointment.patient_id}`).emit('appointment-reminder', {
         message: `Your appointment with Dr. ${appointment.doctor_name} is in 30 minutes`,
         appointmentId: appointment.id,
@@ -135,7 +141,7 @@ class NotificationService {
     const maxRetries = 3;
     
     try {
-      const io = this.getIO();
+      const io = getIO();
       const socketEmitted = io.to(`patient-${patientId}`).emit('wait-time-update', {
         position: position,
         estimatedWait: waitTime,
@@ -173,7 +179,7 @@ class NotificationService {
   // Enhanced appointment status update with delivery confirmation
   static async sendAppointmentStatusUpdate(patientId, doctorId, appointmentId, status, message) {
     try {
-      const io = this.getIO();
+      const io = getIO();
       
       // Notify patient
       io.to(`patient-${patientId}`).emit('appointment-status-changed', {
@@ -214,7 +220,7 @@ class NotificationService {
  // Enhanced doctor calling notification with REAL acknowledgement
   static async sendDoctorCallingNotification(patientId, doctorName, roomNumber, timeoutMs = 10000) {
     try {
-      const io = this.getIO();
+      const io = getIO();
       
       // Get the specific patient's socket using the helper method
       const patientSocket = await this.getPatientSocket(patientId);
@@ -276,7 +282,7 @@ class NotificationService {
   // Helper method to get patient's socket
   static async getPatientSocket(patientId) {
     try {
-      const io = this.getIO();
+      const io = getIO();
       
       // Use fetchSockets() to get all sockets in the patient's room
       const sockets = await io.in(`patient-${patientId}`).fetchSockets();

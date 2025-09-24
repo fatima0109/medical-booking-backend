@@ -1,0 +1,308 @@
+{
+  "info": {
+    "_postman_id": "1e2f3a4b-5566-7788-99aa-bbccddeeff00",
+    "name": "Medical Booking API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Sign Up (OTP flow)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/auth/sign-up", "host": ["{{baseUrl}}"], "path": ["auth", "sign-up"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"patient@example.com\",\n  \"password\": \"password123\",\n  \"name\": \"John Patient\",\n  \"contact_number\": \"+1555123456\",\n  \"phone\": \"+1555123456\"\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Verify OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/auth/verify-otp", "host": ["{{baseUrl}}"], "path": ["auth", "verify-otp"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"patient@example.com\",\n  \"otp\": \"123456\"\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Resend OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/auth/resend-otp", "host": ["{{baseUrl}}"], "path": ["auth", "resend-otp"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"patient@example.com\"\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"patient@example.com\",\n  \"password\": \"password123\"\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "event": [
+            { "listen": "prerequest", "script": { "exec": ["pm.request.headers.add({key: 'Authorization', value: 'Bearer ' + pm.environment.get('token')});"], "type": "text/javascript" } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/auth/logout", "host": ["{{baseUrl}}"], "path": ["auth", "logout"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": { "raw": "{{baseUrl}}/auth/forgot-password", "host": ["{{baseUrl}}"], "path": ["auth", "forgot-password"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"patient@example.com\"\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": { "raw": "{{baseUrl}}/auth/reset-password", "host": ["{{baseUrl}}"], "path": ["auth", "reset-password"] },
+            "body": { "mode": "raw", "raw": "{\n  \"token\": \"<from_email_link>\",\n  \"newPassword\": \"newpass123\"\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Account (Soft)",
+          "event": [
+            { "listen": "prerequest", "script": { "exec": ["pm.request.headers.add({key: 'Authorization', value: 'Bearer ' + pm.environment.get('token')});"], "type": "text/javascript" } }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": { "raw": "{{baseUrl}}/auth/delete-account", "host": ["{{baseUrl}}"], "path": ["auth", "delete-account"] },
+            "body": { "mode": "raw", "raw": "{\n  \"password\": \"password123\"\n}" }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Doctors",
+      "item": [
+        {
+          "name": "List Doctors",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/doctors", "host": ["{{baseUrl}}"], "path": ["doctors"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Search Doctors",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/doctors/search?specialty=cardiology&date=2025-09-21",
+              "host": ["{{baseUrl}}"],
+              "path": ["doctors", "search"],
+              "query": [
+                { "key": "specialty", "value": "cardiology" },
+                { "key": "date", "value": "2025-09-21" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Doctor By Id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/doctors/doctor/{{doctorId}}", "host": ["{{baseUrl}}"], "path": ["doctors", "doctor", "{{doctorId}}"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Set Availability (Doctor/Admin)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": { "exec": ["pm.request.headers.add({key: 'Authorization', value: 'Bearer ' + pm.environment.get('token')});"], "type": "text/javascript" }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": { "raw": "{{baseUrl}}/doctors/doctor/{{doctorId}}/availability", "host": ["{{baseUrl}}"], "path": ["doctors", "doctor", "{{doctorId}}", "availability"] },
+            "body": { "mode": "raw", "raw": "{\n  \"day\": 1,\n  \"startTime\": \"09:00\",\n  \"endTime\": \"17:00\"\n}" }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Availability",
+      "item": [
+        {
+          "name": "Get Doctor Availability",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/availability/doctor/{{doctorId}}?date=2025-09-21", "host": ["{{baseUrl}}"], "path": ["availability", "doctor", "{{doctorId}}"], "query": [{"key":"date","value":"2025-09-21"}] } },
+          "response": []
+        },
+        {
+          "name": "Get Available Slots",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/availability/doctor/{{doctorId}}/slots?date=2025-09-21", "host": ["{{baseUrl}}"], "path": ["availability", "doctor", "{{doctorId}}", "slots"], "query": [{"key":"date","value":"2025-09-21"}] } },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Appointments (Patient)",
+      "item": [
+        {
+          "name": "Book (pending_payment) + initiatePayment",
+          "event": [
+            { "listen": "prerequest", "script": { "exec": ["pm.request.headers.add({key: 'Authorization', value: 'Bearer ' + pm.environment.get('token')});"], "type": "text/javascript" } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": { "raw": "{{baseUrl}}/appointments/book?initiatePayment=true", "host": ["{{baseUrl}}"], "path": ["appointments", "book"], "query": [{"key":"initiatePayment","value":"true"}] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctorId\": {{doctorId}},\n  \"date\": \"2025-09-21\",\n  \"timeSlot\": { \"start\": \"10:00\", \"end\": \"10:30\" },\n  \"consultationType\": \"video\",\n  \"notes\": \"Follow-up\"\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "My Appointments",
+          "event": [
+            { "listen": "prerequest", "script": { "exec": ["pm.request.headers.add({key: 'Authorization', value: 'Bearer ' + pm.environment.get('token')});"], "type": "text/javascript" } }
+          ],
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/appointments/my-appointments?status=scheduled&page=1&limit=10", "host": ["{{baseUrl}}"], "path": ["appointments", "my-appointments"], "query": [{"key":"status","value":"scheduled"},{"key":"page","value":"1"},{"key":"limit","value":"10"}] } },
+          "response": []
+        },
+        {
+          "name": "Get Appointment By Id",
+          "event": [
+            { "listen": "prerequest", "script": { "exec": ["pm.request.headers.add({key: 'Authorization', value: 'Bearer ' + pm.environment.get('token')});"], "type": "text/javascript" } }
+          ],
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/appointments/{{appointmentId}}", "host": ["{{baseUrl}}"], "path": ["appointments", "{{appointmentId}}"] } },
+          "response": []
+        },
+        {
+          "name": "Reschedule",
+          "event": [
+            { "listen": "prerequest", "script": { "exec": ["pm.request.headers.add({key: 'Authorization', value: 'Bearer ' + pm.environment.get('token')});"], "type": "text/javascript" } }
+          ],
+          "request": { "method": "PATCH", "header": [ { "key": "Content-Type", "value": "application/json" } ], "url": { "raw": "{{baseUrl}}/appointments/{{appointmentId}}/reschedule", "host": ["{{baseUrl}}"], "path": ["appointments", "{{appointmentId}}", "reschedule"] }, "body": { "mode": "raw", "raw": "{\n  \"date\": \"2025-09-22\",\n  \"timeSlot\": { \"start\": \"11:00\", \"end\": \"11:30\" }\n}" } },
+          "response": []
+        },
+        {
+          "name": "Cancel",
+          "event": [
+            { "listen": "prerequest", "script": { "exec": ["pm.request.headers.add({key: 'Authorization', value: 'Bearer ' + pm.environment.get('token')});"], "type": "text/javascript" } }
+          ],
+          "request": { "method": "PATCH", "header": [], "url": { "raw": "{{baseUrl}}/appointments/{{appointmentId}}/cancel", "host": ["{{baseUrl}}"], "path": ["appointments", "{{appointmentId}}", "cancel"] } },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Payments",
+      "item": [
+        {
+          "name": "Create Payment Intent",
+          "event": [ { "listen": "prerequest", "script": { "exec": ["pm.request.headers.add({key: 'Authorization', value: 'Bearer ' + pm.environment.get('token')});"], "type": "text/javascript" } } ],
+          "request": { "method": "POST", "header": [ { "key": "Content-Type", "value": "application/json" } ], "url": { "raw": "{{baseUrl}}/payments/intent", "host": ["{{baseUrl}}"], "path": ["payments", "intent"] }, "body": { "mode": "raw", "raw": "{\n  \"appointmentId\": {{appointmentId}}\n}" } },
+          "response": []
+        },
+        {
+          "name": "Payment Status",
+          "event": [ { "listen": "prerequest", "script": { "exec": ["pm.request.headers.add({key: 'Authorization', value: 'Bearer ' + pm.environment.get('token')});"], "type": "text/javascript" } } ],
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/payments/status/{{appointmentId}}", "host": ["{{baseUrl}}"], "path": ["payments", "status", "{{appointmentId}}"] } },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Appointments (Doctor)",
+      "item": [
+        {
+          "name": "My Appointments (Doctor)",
+          "event": [ { "listen": "prerequest", "script": { "exec": ["pm.request.headers.add({key: 'Authorization', value: 'Bearer ' + pm.environment.get('token')});"], "type": "text/javascript" } } ],
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/appointments/doctor/my-appointments?status=scheduled&date=2025-09-21", "host": ["{{baseUrl}}"], "path": ["appointments", "doctor", "my-appointments"], "query": [{"key":"status","value":"scheduled"},{"key":"date","value":"2025-09-21"}] } },
+          "response": []
+        },
+        {
+          "name": "Start Appointment",
+          "event": [ { "listen": "prerequest", "script": { "exec": ["pm.request.headers.add({key: 'Authorization', value: 'Bearer ' + pm.environment.get('token')});"], "type": "text/javascript" } } ],
+          "request": { "method": "PATCH", "header": [], "url": { "raw": "{{baseUrl}}/appointments/{{appointmentId}}/start", "host": ["{{baseUrl}}"], "path": ["appointments", "{{appointmentId}}", "start"] } },
+          "response": []
+        },
+        {
+          "name": "Get Meeting Info",
+          "event": [ { "listen": "prerequest", "script": { "exec": ["pm.request.headers.add({key: 'Authorization', value: 'Bearer ' + pm.environment.get('token')});"], "type": "text/javascript" } } ],
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/appointments/{{appointmentId}}/meeting", "host": ["{{baseUrl}}"], "path": ["appointments", "{{appointmentId}}", "meeting"] } },
+          "response": []
+        },
+        {
+          "name": "Complete Appointment",
+          "event": [ { "listen": "prerequest", "script": { "exec": ["pm.request.headers.add({key: 'Authorization', value: 'Bearer ' + pm.environment.get('token')});"], "type": "text/javascript" } } ],
+          "request": { "method": "PATCH", "header": [ { "key": "Content-Type", "value": "application/json" } ], "url": { "raw": "{{baseUrl}}/appointments/{{appointmentId}}/complete", "host": ["{{baseUrl}}"], "path": ["appointments", "{{appointmentId}}", "complete"] }, "body": { "mode": "raw", "raw": "{\n  \"diagnosis\": \"Migraine\",\n  \"prescription\": \"Ibuprofen 400mg\",\n  \"notes\": \"Hydration\"\n}" } },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Global pre-request can be used for auth header if not per-item\n"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000/api" },
+    { "key": "token", "value": "" },
+    { "key": "doctorId", "value": "1" },
+    { "key": "appointmentId", "value": "1" }
+  ]
+}
+
+

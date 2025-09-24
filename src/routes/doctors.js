@@ -241,7 +241,7 @@ router.get('/search/advanced', async (req, res, next) => {
 // Get doctor by ID
 router.get('/doctor/:doctorId', async (req, res, next) => {
   try {
-    const doctor = await getDoctorById(req.params.id);
+    const doctor = await getDoctorById(req.params.doctorId);
     if (doctor.rows.length === 0) {
       return res.status(404).json({
         success: false,
@@ -273,7 +273,7 @@ router.post('/doctor/:doctorId/availability',
       }
 
       const { day, startTime, endTime } = req.body;
-      await setDoctorAvailability(req.params.id, { day, startTime, endTime });
+      await setDoctorAvailability(req.params.doctorId, { day, startTime, endTime });
       
       res.json({
         success: true,
@@ -303,8 +303,8 @@ router.post('/doctor/:doctorId/book',
 
       const { date, startTime, endTime, type } = req.body;
       const appointment = await createAppointment(
-        req.user.id, // Changed from req.user.userId to req.user.id
-        req.params.id,
+        req.user.id,
+        req.params.doctorId,
         date,
         startTime,
         endTime,
