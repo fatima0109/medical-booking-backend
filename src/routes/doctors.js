@@ -323,4 +323,3 @@ router.post('/doctor/:doctorId/book',
 );
 
 module.exports = router;
-export default router;

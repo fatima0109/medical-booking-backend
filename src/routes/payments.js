@@ -67,4 +67,3 @@ router.get('/status/:appointmentId', authenticateToken, async (req, res, next) =
 module.exports = router;
 
 
-export default router;

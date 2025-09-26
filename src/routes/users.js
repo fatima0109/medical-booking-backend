@@ -90,4 +90,3 @@ router.get('/:userId', authenticateToken, validateUserId, async (req, res, next)
 });
 
 module.exports = router;
-export default router;

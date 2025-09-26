@@ -16,4 +16,3 @@ router.get('/:appointmentId', authenticateToken, validateAppointmentId, appointm
 router.get('/:appointmentId/meeting', authenticateToken, validateAppointmentId, appointmentController.getAppointmentMeeting);
 
 module.exports = router;
-export default router;

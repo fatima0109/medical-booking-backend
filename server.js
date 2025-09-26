@@ -1,25 +1,23 @@
-import express from 'express';
-import cors from 'cors';
-import rateLimit from 'express-rate-limit';
-import helmet from 'helmet';
-import path from 'path';
-import dotenv from 'dotenv';
-import http from 'http';
-dotenv.config();
+const express = require('express');
+const cors = require('cors');
+const rateLimit = require('express-rate-limit');
+const helmet = require('helmet');
+const path = require('path');
+require('dotenv').config();
 
 // Import routes
-import authRoutes from './src/routes/auth.js';
-import appointmentRoutes from './src/routes/appointments.js';
-import doctorRoutes from './src/routes/doctors.js';
-import userRoutes from './src/routes/users.js';
-import availabilityRoutes from './src/routes/availability.js';
-import passwordResetRoutes from './src/routes/passwordReset.js';
-import queueRoutes from './src/routes/queue.js';
-import feedbackRoutes from './src/routes/feedback.js';
-import paymentRoutes from './src/routes/payments.js';
-import devRoutes from './src/routes/dev.js';
-import { startCronJobs } from './src/services/cronService.js';
-import { initSocket } from './src/services/socketService.js';
+const authRoutes = require('./src/routes/auth');
+const appointmentRoutes = require('./src/routes/appointments');
+const doctorRoutes = require('./src/routes/doctors');
+const userRoutes = require('./src/routes/users');
+const availabilityRoutes = require('./src/routes/availability');
+const passwordResetRoutes = require('./src/routes/passwordReset');
+const queueRoutes = require('./src/routes/queue');
+const feedbackRoutes = require('./src/routes/feedback');
+const paymentRoutes = require('./src/routes/payments');
+const devRoutes = require('./src/routes/dev');
+const { startCronJobs } = require('./src/services/cronService');
+const { initSocket } = require('./src/services/socketService');
 
 // Initialize Express app
 const app = express();
@@ -105,6 +103,7 @@ app.use((err, req, res, next) => {
 
 // 10. Start Server
 const PORT = process.env.PORT || 5000;
+const http = require('http');
 const server = http.createServer(app);
 
 server.listen(PORT, () => {
@@ -118,4 +117,4 @@ server.listen(PORT, () => {
   }
 });
 
-export default app;
+module.exports = app;

@@ -54,4 +54,3 @@ router.delete('/:appointmentId/remove',
 );
 
 module.exports = router;
-export default router;
