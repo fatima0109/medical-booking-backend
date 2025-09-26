@@ -18,6 +18,7 @@ router.post('/seed-doctors', async (req, res) => {
 });
 
 module.exports = router;
+export default router;
 
 // Health check for email configuration (dev only)
 router.get('/email-health', async (req, res) => {

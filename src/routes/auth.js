@@ -27,3 +27,4 @@ router.delete('/debug/clear-otps', otpController.clearTempStorage); // Fixed fun
 router.post('/debug/set-test-otp', otpController.setTestData); // Fixed function name
 
 module.exports = router;
+export default router;

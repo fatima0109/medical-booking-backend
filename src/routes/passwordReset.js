@@ -18,3 +18,4 @@ router.post('/reset-password', [
 router.get('/verify-token', verifyResetToken);
 
 module.exports = router;
+export default router;

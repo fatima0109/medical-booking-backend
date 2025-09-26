@@ -23,3 +23,4 @@ router.post('/', authenticateToken, availabilityController.addAvailabilitySlot);
 router.delete('/:availabilityId', authenticateToken, availabilityController.deleteAvailabilitySlot);
 
 module.exports = router;
+export default router;

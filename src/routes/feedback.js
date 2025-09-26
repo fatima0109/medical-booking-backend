@@ -31,3 +31,4 @@ router.patch('/admin/:feedbackId/status',
 );
 
 module.exports = router;
+export default router;
