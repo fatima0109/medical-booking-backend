@@ -75,10 +75,27 @@ const authController = {
         }
       }, 3 * 60 * 1000);
 
-      // Send OTP email
-      await sendOTPEmail(email, otp);
+      // Send OTP email and handle failures explicitly
+      const sendResult = await sendOTPEmail(email, otp);
 
       console.log('Sign up OTP:', otp); // For testing
+
+      if (!sendResult || sendResult.success === false) {
+        console.error('OTP email send failed:', sendResult && sendResult.error);
+        if (process.env.NODE_ENV !== 'production') {
+          return res.status(200).json({
+            success: true,
+            message: 'Email not configured. OTP returned for development only.',
+            email: email,
+            otp: otp,
+            expiresIn: 3
+          });
+        }
+        return res.status(500).json({
+          success: false,
+          error: 'Failed to send OTP email. Please try again later.'
+        });
+      }
 
       res.status(200).json({
         success: true,

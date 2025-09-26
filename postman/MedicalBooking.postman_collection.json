@@ -54,13 +54,13 @@
           "response": []
         },
         {
-          "name": "Login",
+          "name": "Login (sign-in)",
           "request": {
             "method": "POST",
             "header": [
               { "key": "Content-Type", "value": "application/json" }
             ],
-            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] },
+            "url": { "raw": "{{baseUrl}}/auth/sign-in", "host": ["{{baseUrl}}"], "path": ["auth", "sign-in"] },
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"patient@example.com\",\n  \"password\": \"password123\"\n}"
@@ -110,6 +110,20 @@
             "header": [ { "key": "Content-Type", "value": "application/json" } ],
             "url": { "raw": "{{baseUrl}}/auth/delete-account", "host": ["{{baseUrl}}"], "path": ["auth", "delete-account"] },
             "body": { "mode": "raw", "raw": "{\n  \"password\": \"password123\"\n}" }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Dev (Local Only)",
+      "item": [
+        {
+          "name": "Seed Sample Doctors & Availability",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/dev/seed-doctors", "host": ["{{baseUrl}}"], "path": ["dev", "seed-doctors"] }
           },
           "response": []
         }

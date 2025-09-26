@@ -15,6 +15,7 @@ const passwordResetRoutes = require('./src/routes/passwordReset');
 const queueRoutes = require('./src/routes/queue');
 const feedbackRoutes = require('./src/routes/feedback');
 const paymentRoutes = require('./src/routes/payments');
+const devRoutes = require('./src/routes/dev');
 const { startCronJobs } = require('./src/services/cronService');
 const { initSocket } = require('./src/services/socketService');
 
@@ -62,6 +63,9 @@ app.use('/api/password-reset', passwordResetRoutes);
 app.use('/api/queue', queueRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/payments', paymentRoutes);
+if (process.env.NODE_ENV !== 'production') {
+  app.use('/api/dev', devRoutes);
+}
 
 // 6. Health Check
 app.get('/api/health', (req, res) => {
